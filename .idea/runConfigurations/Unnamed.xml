@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Unnamed" type="GoApplicationRunConfiguration" factoryName="Go Application" singleton="true">
+    <module name="dirscanner" />
+    <working_directory value="$PROJECT_DIR$/" />
+    <go_parameters value="-i -race" />
+    <kind value="FILE" />
+    <filePath value="$PROJECT_DIR$/_example/example.go" />
+    <package value="github.com/raspi/dirscanner" />
+    <directory value="$PROJECT_DIR$/" />
+    <method />
+  </configuration>
+</component>
