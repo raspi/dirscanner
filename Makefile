@@ -1,3 +1,9 @@
 integration-test:
 	GOCACHE=off
-	go test -run TestIntegration
+	go test -v -run TestIntegration
+
+coverage:
+	go test -v -cover
+
+test:
+	go test -v
