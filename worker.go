@@ -17,7 +17,7 @@ type workerResult struct {
 
 // Send information of what worker is processing
 type workerInfo struct {
-	Directory string
+	Directory string // Directory path
 }
 
 // Always use New() to get proper scanner
@@ -32,6 +32,7 @@ type DirectoryScanner struct {
 	FileValidatorFunc    func(os.FileInfo) bool // Function for file validation
 	isInitialized        bool                   // Initializing function called?
 	isFinished           bool                   // finished?
+	isRecursive          bool                   // Scan recursively?
 }
 
 // Create new directory scanner
@@ -51,6 +52,7 @@ func New() DirectoryScanner {
 		},
 		isInitialized: false,
 		isFinished:    false,
+		isRecursive:   true,
 	}
 }
 
@@ -84,6 +86,8 @@ func (s *DirectoryScanner) ScanDirectory(dir string) (err error) {
 	if s.isFinished {
 		return errors.New(fmt.Sprintf(`finished`))
 	}
+
+	s.isRecursive = true
 
 	err = isDirectory(dir)
 
@@ -133,21 +137,26 @@ func (s *DirectoryScanner) worker() {
 
 		// Got result(s) (files)
 		for _, file := range files {
-			s.Results <- workerResult{
+			res := workerResult{
 				Path: file.Path,
 				Size: file.Size,
 			}
+
+			s.Results <- res
+
 		}
 
-		dirCount := len(dirs)
+		if s.isRecursive {
+			dirCount := len(dirs)
 
-		if dirCount > 0 {
-			// Add directory to job queue
-			s.waitGroup.Add(dirCount)
+			if dirCount > 0 {
+				// Add directory to job queue
+				s.waitGroup.Add(dirCount)
 
-			// Process directories with worker
-			for _, dirname := range dirs {
-				s.directoryScannerJobs <- dirname
+				// Process directories with worker
+				for _, dirname := range dirs {
+					s.directoryScannerJobs <- dirname
+				}
 			}
 		}
 
