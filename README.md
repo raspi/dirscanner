@@ -15,6 +15,7 @@ import (
 	"github.com/raspi/dirscanner"
 	"runtime"
 	"os"
+	"sort"
 )
 
 // Custom file validator
@@ -39,7 +40,7 @@ func main() {
 		panic(err)
 	}
 
-	err = s.ScanDirectory(`/home/raspi/go`)
+	err = s.ScanDirectory(`/home/raspi`)
 	if err != nil {
 		panic(err)
 	}
@@ -53,6 +54,8 @@ func main() {
 	defer ticker.Stop()
 	now := time.Now()
 
+	sortedBySize := map[uint64][]string{}
+
 readloop:
 	for {
 		select {
@@ -61,21 +64,49 @@ readloop:
 			log.Printf(`got all files`)
 			break readloop
 
-		case e := <-s.Errors: // Error happened, handle, discard or abort
+		case e, ok := <-s.Errors: // Error happened, handle, discard or abort
+			if !ok {
+				continue
+			}
+
 			log.Printf(`got error: %v`, e)
 			//s.Aborted <- true // Abort
 
-		case info := <-s.Information: // Got information where worker is currently
+		case info, ok := <-s.Information: // Got information where worker is currently
+			if !ok {
+				continue
+			}
+
 			lastDir = info.Directory
 
 		case <-ticker.C: // Display some progress stats
 			log.Printf(`%v Files scanned: %v Last file: %#v Dir: %#v`, time.Since(now).Truncate(time.Second), fileCount, lastFile, lastDir)
 
-		case res := <-s.Results:
+		case res, ok := <-s.Results:
+			if !ok {
+				continue
+			}
+
 			// Process file:
 			lastFile = res.Path
 			fileCount++
+			sortedBySize[res.Size] = append(sortedBySize[res.Size], res.Path)
+			//time.Sleep(time.Millisecond * 100)
 		}
+	}
+
+	// Sort
+	var keys []uint64
+
+	for k, _ := range sortedBySize {
+		keys = append(keys, k)
+	}
+
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+
+	// Print in size order
+	for _, k := range keys {
+		log.Printf(`S:%v C:%v %v`, k, len(sortedBySize[k]), sortedBySize[k])
 	}
 
 	log.Printf(`last: %v`, lastFile)
