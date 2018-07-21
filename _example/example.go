@@ -6,6 +6,7 @@ import (
 	"github.com/raspi/dirscanner"
 	"runtime"
 	"os"
+	"sort"
 )
 
 // Custom file validator
@@ -30,7 +31,7 @@ func main() {
 		panic(err)
 	}
 
-	err = s.ScanDirectory(`/home/raspi/aur`)
+	err = s.ScanDirectory(`/home/raspi`)
 	if err != nil {
 		panic(err)
 	}
@@ -43,6 +44,8 @@ func main() {
 	ticker := time.NewTicker(time.Second * 1)
 	defer ticker.Stop()
 	now := time.Now()
+
+	sortedBySize := map[uint64][]string{}
 
 readloop:
 	for {
@@ -66,7 +69,23 @@ readloop:
 			// Process file:
 			lastFile = res.Path
 			fileCount++
+			sortedBySize[res.Size] = append(sortedBySize[res.Size], res.Path)
+			//time.Sleep(time.Millisecond * 100)
 		}
+	}
+
+	// Sort
+	var keys []uint64
+
+	for k, _ := range sortedBySize {
+		keys = append(keys, k)
+	}
+
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+
+	// Print in size order
+	for _, k := range keys {
+		log.Printf(`S:%v C:%v %v`, k, len(sortedBySize[k]), sortedBySize[k])
 	}
 
 	log.Printf(`last: %v`, lastFile)
