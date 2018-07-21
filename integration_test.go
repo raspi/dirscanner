@@ -73,20 +73,27 @@ func TestIntegration(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				_, err := os.Create(fpath)
+				f, err := os.Create(fpath)
 				if err != nil {
 					t.Fatal(err)
 				}
+
+				for i := 0; i < 100; i++ {
+					f.Write([]byte(`This is a test file! `))
+				}
+
+				f.Close()
 			}
 		}
 	}
 
+	var expectedTotalFilesize = uint64(0)
 	var expectedFiles []string
 
 	err = filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
 			expectedFiles = append(expectedFiles, path)
-
+			expectedTotalFilesize += uint64(info.Size())
 		}
 
 		return nil
@@ -108,6 +115,7 @@ func TestIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	var actualTotalFilesize = uint64(0)
 	var actualFiles []string
 
 readloop:
@@ -122,8 +130,13 @@ readloop:
 
 		case _ = <-scanner.Information:
 
-		case res := <-scanner.Results:
+		case res, ok := <-scanner.Results:
+			if !ok {
+				continue
+			}
+
 			actualFiles = append(actualFiles, res.Path)
+			actualTotalFilesize += res.Size
 		}
 	}
 
@@ -136,5 +149,11 @@ readloop:
 		t.Logf(`Diff: %v`, diff)
 		t.Fail()
 	}
+
+	if actualTotalFilesize != expectedTotalFilesize {
+		t.Logf(`expected total size: %v, got %v`, expectedTotalFilesize, actualTotalFilesize)
+		t.Fail()
+	}
+
 
 }
