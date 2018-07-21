@@ -1,6 +1,10 @@
+# dirscanner
 `dirscanner` is a recursive file lister which uses channels for go.
 
-Example usage:
+## Why?
+When there's 1000000+ files in multiple directories crawling can take minutes. With a `dirscanner` channel you can start parsing files more quickly.
+
+## Example usage:
 
 ```go
 package main
