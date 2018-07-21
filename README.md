@@ -4,6 +4,10 @@
 ## Why?
 When there's 1000000+ files in multiple directories crawling can take minutes. With a `dirscanner` channel you can start parsing files more quickly.
 
+## Features
+
+* You can provide a filter function to the scanner which validates what files will be sent for processing. For example: get only files that are between 1-10 MiB.
+
 ## Example usage:
 
 ```go
@@ -114,3 +118,10 @@ readloop:
 
 }
 ```
+## Installation
+To install this package, simply go get it:
+
+    go get -u github.com/raspi/dirscanner
+
+## Dependencies
+There are no 3rd party package dependencies.
