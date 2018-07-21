@@ -55,17 +55,29 @@ readloop:
 			log.Printf(`got all files`)
 			break readloop
 
-		case e := <-s.Errors: // Error happened, handle, discard or abort
+		case e, ok := <-s.Errors: // Error happened, handle, discard or abort
+			if !ok {
+				continue
+			}
+
 			log.Printf(`got error: %v`, e)
 			//s.Aborted <- true // Abort
 
-		case info := <-s.Information: // Got information where worker is currently
+		case info, ok := <-s.Information: // Got information where worker is currently
+			if !ok {
+				continue
+			}
+
 			lastDir = info.Directory
 
 		case <-ticker.C: // Display some progress stats
 			log.Printf(`%v Files scanned: %v Last file: %#v Dir: %#v`, time.Since(now).Truncate(time.Second), fileCount, lastFile, lastDir)
 
-		case res := <-s.Results:
+		case res, ok := <-s.Results:
+			if !ok {
+				continue
+			}
+
 			// Process file:
 			lastFile = res.Path
 			fileCount++
