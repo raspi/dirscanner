@@ -3,7 +3,6 @@ package dirscanner
 import (
 	"os"
 	"fmt"
-	"errors"
 	"sync"
 )
 
@@ -65,7 +64,7 @@ func (s *DirectoryScanner) Init(workerCount uint64, fileValidatorFunc func(info 
 	s.FileValidatorFunc = fileValidatorFunc
 
 	if workerCount == 0 {
-		return errors.New(fmt.Sprintf(`invalid amount of workers: %v`, workerCount))
+		return fmt.Errorf(`invalid amount of workers: %v`, workerCount)
 	}
 
 	// start N workers
@@ -80,11 +79,11 @@ func (s *DirectoryScanner) Init(workerCount uint64, fileValidatorFunc func(info 
 
 func (s *DirectoryScanner) ScanDirectory(dir string) (err error) {
 	if !s.isInitialized {
-		return errors.New(fmt.Sprintf(`not initialized`))
+		return fmt.Errorf(`not initialized`)
 	}
 
 	if s.isFinished {
-		return errors.New(fmt.Sprintf(`finished`))
+		return fmt.Errorf(`finished`)
 	}
 
 	s.isRecursive = true
