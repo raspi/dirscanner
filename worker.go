@@ -111,12 +111,20 @@ func (s *DirectoryScanner) ScanDirectory(dir string) (err error) {
 		// Work is done
 		sc.Finished <- true
 
-		// Close channels
-		close(sc.Finished)
-		close(sc.directoryScannerJobs)
-		close(sc.Results)
-		close(sc.Information)
 	}(s)
+
+	return nil
+}
+
+// Close channels
+func (s *DirectoryScanner) Close() (err error) {
+	// Close channels
+	close(s.Finished)
+	close(s.directoryScannerJobs)
+	close(s.Results)
+	close(s.Information)
+	close(s.Aborted)
+	close(s.Errors)
 
 	return nil
 }
@@ -138,6 +146,8 @@ func (s *DirectoryScanner) worker() {
 
 		// Got result(s) (files)
 		for _, file := range files {
+			s.waitGroup.Add(1)
+
 			res := workerResult{
 				Path: file.Path,
 				Size: file.Size,
@@ -145,6 +155,7 @@ func (s *DirectoryScanner) worker() {
 
 			s.Results <- res
 
+			s.waitGroup.Done()
 		}
 
 		if s.isRecursive {
