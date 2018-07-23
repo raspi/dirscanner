@@ -57,7 +57,7 @@ func New() DirectoryScanner {
 }
 
 // Initialize workers
-func (s *DirectoryScanner) Init(workerCount uint64, fileValidatorFunc func(info os.FileInfo) bool) (err error) {
+func (s *DirectoryScanner) Init(workerCount int, fileValidatorFunc func(info os.FileInfo) bool) (err error) {
 	// Make buffer for scanner jobs
 	s.directoryScannerJobs = make(chan string, DIRECTORY_QUEUE_SIZE)
 
@@ -69,7 +69,7 @@ func (s *DirectoryScanner) Init(workerCount uint64, fileValidatorFunc func(info 
 	}
 
 	// start N workers
-	for i := uint64(0); i < workerCount; i++ {
+	for i := 0; i < workerCount; i++ {
 		go s.worker()
 	}
 
