@@ -7,9 +7,10 @@ import (
 	"path/filepath"
 )
 
+// Information about a file
 type FileInformation struct {
-	Path string
-	Size uint64
+	Path string // Path to file
+	Size uint64 // Size of file
 }
 
 // is directory and exists
