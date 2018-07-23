@@ -3,7 +3,6 @@ package dirscanner
 import (
 	"os"
 	"fmt"
-	"errors"
 	"path/filepath"
 )
 
@@ -24,7 +23,7 @@ func isDirectory(dir string) (err error) {
 	}
 
 	if !fi.IsDir() {
-		return errors.New(fmt.Sprintf(`Not a directory: %v`, dir))
+		return fmt.Errorf(`not a directory: %v`, dir)
 	}
 
 	return nil
