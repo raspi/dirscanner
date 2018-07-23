@@ -9,13 +9,9 @@ import (
 	"sort"
 )
 
-// Custom file validator
-func validateFile(file os.FileInfo) bool {
-	if !file.Mode().IsRegular() {
-		return false
-	}
-
-	return true
+// Example custom file validator
+func validateFile(info os.FileInfo) bool {
+	return info.Mode().IsRegular()
 }
 
 func main() {
