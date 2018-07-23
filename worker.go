@@ -6,7 +6,8 @@ import (
 	"sync"
 )
 
-const DIRECTORY_BUFFER = 65536
+// How many directories to keep in queue
+const DIRECTORY_QUEUE_SIZE = 65536
 
 // Result of a worker
 type workerResult struct {
@@ -58,7 +59,7 @@ func New() DirectoryScanner {
 // Initialize workers
 func (s *DirectoryScanner) Init(workerCount uint64, fileValidatorFunc func(info os.FileInfo) bool) (err error) {
 	// Make buffer for scanner jobs
-	s.directoryScannerJobs = make(chan string, DIRECTORY_BUFFER)
+	s.directoryScannerJobs = make(chan string, DIRECTORY_QUEUE_SIZE)
 
 	// Set file validator function which filters wanted files
 	s.FileValidatorFunc = fileValidatorFunc
@@ -77,6 +78,7 @@ func (s *DirectoryScanner) Init(workerCount uint64, fileValidatorFunc func(info 
 	return nil
 }
 
+// Scan given directory and send results (file paths) to a channel
 func (s *DirectoryScanner) ScanDirectory(dir string) (err error) {
 	if !s.isInitialized {
 		return fmt.Errorf(`not initialized`)
