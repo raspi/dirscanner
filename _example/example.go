@@ -18,7 +18,7 @@ func validateFile(path string, info os.FileInfo, stat syscall.Stat_t) bool {
 func main() {
 	var err error
 
-	workerCount := runtime.NumCPU()
+	workerCount := runtime.NumCPU() * 2
 	//workerCount := 1
 
 	s := dirscanner.New()
