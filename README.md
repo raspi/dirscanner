@@ -118,3 +118,6 @@ To install this package, simply go get it:
 
 ## Dependencies
 There are no 3rd party package dependencies.
+
+## Projects using this library
+* https://github.com/raspi/duplikaatti
