@@ -4,14 +4,23 @@ import (
 	"os"
 	"fmt"
 	"path/filepath"
-	"syscall"
 )
 
 // Information about a file
-type fileInformation struct {
-	Path     string // Path to file
-	FileInfo os.FileInfo
-	Stat     syscall.Stat_t
+type FileInformation struct {
+	Path       string // Path to file
+	Size       uint64 // File size
+	Identifier uint64 // Identifier (inode)
+	Mode       os.FileMode
+}
+
+func newFileInformation(path string, size uint64, id uint64, mode os.FileMode) FileInformation {
+	return FileInformation{
+		Path:       path,
+		Size:       size,
+		Identifier: id,
+		Mode:       mode,
+	}
 }
 
 // is directory and exists
@@ -33,17 +42,17 @@ func isDirectory(dir string) (err error) {
 
 // List files and directories of given directory
 // Filter accepted files with a function
-func listFiles(dir string, fileValidatorFunc FileValidatorFunction) (files []fileInformation, directories []string, err error) {
+func listFiles(dir string, fileValidatorFunc FileValidatorFunction) (files []FileInformation, directories []string, err error) {
 	directory, err := os.Open(dir)
 
 	if err != nil {
-		return []fileInformation{}, []string{}, err
+		return []FileInformation{}, []string{}, err
 	}
 
 	fInfo, err := directory.Readdir(-1)
 	directory.Close()
 	if err != nil {
-		return []fileInformation{}, []string{}, err
+		return []FileInformation{}, []string{}, err
 	}
 
 	for _, file := range fInfo {
@@ -52,22 +61,19 @@ func listFiles(dir string, fileValidatorFunc FileValidatorFunction) (files []fil
 			directories = append(directories, fpath)
 		} else {
 
-			stat, ok := file.Sys().(*syscall.Stat_t)
-
-			if !ok {
+			inode, err := getInode(fpath)
+			if err != nil {
 				continue
 			}
 
-			if !fileValidatorFunc(fpath, file, *stat) {
+			fi := newFileInformation(fpath, uint64(file.Size()), inode, file.Mode())
+
+			if !fileValidatorFunc(fi) {
 				// Not a valid file, continue
 				continue
 			}
 
-			files = append(files, fileInformation{
-				Path:     fpath,
-				FileInfo: file,
-				Stat:     *stat,
-			})
+			files = append(files, fi)
 
 		}
 	}

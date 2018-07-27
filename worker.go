@@ -1,22 +1,13 @@
 package dirscanner
 
 import (
-	"os"
 	"fmt"
 	"sync"
-	"syscall"
 	"time"
 )
 
 // How many directories to keep in queue
 const DIRECTORY_QUEUE_SIZE = 65536
-
-// Result of a worker
-type workerResult struct {
-	Path     string         // Path to file
-	FileInfo os.FileInfo    // FileInfo
-	Stat     syscall.Stat_t // stat'd information
-}
 
 // Send information of what worker is processing
 type workerInfo struct {
@@ -24,12 +15,12 @@ type workerInfo struct {
 }
 
 // File validator signature
-type FileValidatorFunction func(path string, info os.FileInfo, stat syscall.Stat_t) bool
+type FileValidatorFunction func(info FileInformation) bool
 
 // Always use New() to get proper scanner
 type DirectoryScanner struct {
 	directoryScannerJobs chan string           // Jobs (scan directory X)
-	Results              chan workerResult     // Results
+	Results              chan FileInformation  // Results
 	Finished             chan bool             // Scanner has finished?
 	Aborted              chan bool             // Scanner has aborted?
 	Information          chan workerInfo       // Information about scan progress
@@ -44,7 +35,7 @@ type DirectoryScanner struct {
 // Create new directory scanner
 func New() DirectoryScanner {
 	return DirectoryScanner{
-		Results:              make(chan workerResult, 100),
+		Results:              make(chan FileInformation, 100),
 		Finished:             make(chan bool, 1),
 		Aborted:              make(chan bool, 1),
 		Information:          make(chan workerInfo),
@@ -52,8 +43,8 @@ func New() DirectoryScanner {
 		directoryScannerJobs: make(chan string, DIRECTORY_QUEUE_SIZE),
 		Errors:               make(chan error),
 		// Default validator:
-		FileValidatorFunc: func(path string, info os.FileInfo, stat syscall.Stat_t) bool {
-			// Accepts all files
+		FileValidatorFunc: func(info FileInformation) bool {
+			// Accepts all files by default
 			return true
 		},
 		isInitialized: false,
@@ -160,14 +151,7 @@ func (s *DirectoryScanner) worker() {
 		// Got result(s) (files)
 		for _, file := range files {
 			s.waitGroup.Add(1)
-			res := workerResult{
-				Path:     file.Path,
-				FileInfo: file.FileInfo,
-				Stat:     file.Stat,
-			}
-
-			s.Results <- res
-
+			s.Results <- file
 			s.waitGroup.Done()
 		}
 
