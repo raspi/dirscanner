@@ -44,7 +44,7 @@ type DirectoryScanner struct {
 // Create new directory scanner
 func New() DirectoryScanner {
 	return DirectoryScanner{
-		Results:              make(chan workerResult, 1),
+		Results:              make(chan workerResult, 100),
 		Finished:             make(chan bool, 1),
 		Aborted:              make(chan bool, 1),
 		Information:          make(chan workerInfo),
@@ -109,6 +109,15 @@ func (s *DirectoryScanner) ScanDirectory(dir string) (err error) {
 	go func(sc *DirectoryScanner) {
 		// Wait workers to be finished
 		sc.waitGroup.Wait()
+
+		for {
+			// Wait queues to empty
+			if len(sc.directoryScannerJobs) == 0 && len(sc.Results) == 0 {
+				break
+			}
+
+			time.Sleep(time.Millisecond * 10)
+		}
 
 		sc.isFinished = true
 
