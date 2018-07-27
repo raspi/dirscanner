@@ -22,20 +22,16 @@ import (
 	"sort"
 )
 
-// Custom file validator
-func validateFile(file os.FileInfo) bool {
-	if !file.Mode().IsRegular() {
-		return false
-	}
-
-	return true
+// Example custom file validator
+func validateFile(info os.FileInfo) bool {
+	return info.Mode().IsRegular()
 }
 
 func main() {
 	var err error
 
-	workerCount := uint64(runtime.NumCPU())
-	//workerCount := uint64(1)
+	workerCount := runtime.NumCPU()
+	//workerCount := 1
 
 	s := dirscanner.New()
 
@@ -43,6 +39,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	defer s.Close()
 
 	err = s.ScanDirectory(`/home/raspi`)
 	if err != nil {
@@ -60,42 +57,38 @@ func main() {
 
 	sortedBySize := map[uint64][]string{}
 
-readloop:
+scanloop:
 	for {
 		select {
 
 		case <-s.Finished: // Finished getting file list
 			log.Printf(`got all files`)
-			break readloop
+			break scanloop
 
 		case e, ok := <-s.Errors: // Error happened, handle, discard or abort
-			if !ok {
-				continue
+			if ok {
+				log.Printf(`got error: %v`, e)
+				//s.Aborted <- true // Abort
 			}
 
-			log.Printf(`got error: %v`, e)
-			//s.Aborted <- true // Abort
 
 		case info, ok := <-s.Information: // Got information where worker is currently
-			if !ok {
-				continue
+			if ok {
+				lastDir = info.Directory
 			}
 
-			lastDir = info.Directory
 
 		case <-ticker.C: // Display some progress stats
 			log.Printf(`%v Files scanned: %v Last file: %#v Dir: %#v`, time.Since(now).Truncate(time.Second), fileCount, lastFile, lastDir)
 
 		case res, ok := <-s.Results:
-			if !ok {
-				continue
+			if ok {
+				// Process file:
+				lastFile = res.Path
+				fileCount++
+				sortedBySize[res.Size] = append(sortedBySize[res.Size], res.Path)
+				//time.Sleep(time.Millisecond * 100)
 			}
-
-			// Process file:
-			lastFile = res.Path
-			fileCount++
-			sortedBySize[res.Size] = append(sortedBySize[res.Size], res.Path)
-			//time.Sleep(time.Millisecond * 100)
 		}
 	}
 
