@@ -4,12 +4,14 @@ import (
 	"os"
 	"fmt"
 	"path/filepath"
+	"syscall"
 )
 
 // Information about a file
-type FileInformation struct {
-	Path string // Path to file
-	Size uint64 // Size of file
+type fileInformation struct {
+	Path     string // Path to file
+	FileInfo os.FileInfo
+	Stat     syscall.Stat_t
 }
 
 // is directory and exists
@@ -31,17 +33,17 @@ func isDirectory(dir string) (err error) {
 
 // List files and directories of given directory
 // Filter accepted files with a function
-func listFiles(dir string, fileValidatorFunc func(os.FileInfo) bool) (files []FileInformation, directories []string, err error) {
+func listFiles(dir string, fileValidatorFunc FileValidatorFunction) (files []fileInformation, directories []string, err error) {
 	directory, err := os.Open(dir)
 
 	if err != nil {
-		return []FileInformation{}, []string{}, err
+		return []fileInformation{}, []string{}, err
 	}
 
 	fInfo, err := directory.Readdir(-1)
 	directory.Close()
 	if err != nil {
-		return []FileInformation{}, []string{}, err
+		return []fileInformation{}, []string{}, err
 	}
 
 	for _, file := range fInfo {
@@ -49,13 +51,24 @@ func listFiles(dir string, fileValidatorFunc func(os.FileInfo) bool) (files []Fi
 		if file.IsDir() {
 			directories = append(directories, fpath)
 		} else {
-			// Check file with given function
-			if fileValidatorFunc(file) {
-				files = append(files, FileInformation{
-					Path: fpath,
-					Size: uint64(file.Size()),
-				})
+
+			stat, ok := file.Sys().(*syscall.Stat_t)
+
+			if !ok {
+				continue
 			}
+
+			if !fileValidatorFunc(fpath, file, *stat) {
+				// Not a valid file, continue
+				continue
+			}
+
+			files = append(files, fileInformation{
+				Path:     fpath,
+				FileInfo: file,
+				Stat:     *stat,
+			})
+
 		}
 	}
 

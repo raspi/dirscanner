@@ -7,10 +7,11 @@ import (
 	"runtime"
 	"os"
 	"sort"
+	"syscall"
 )
 
 // Example custom file validator
-func validateFile(info os.FileInfo) bool {
+func validateFile(path string, info os.FileInfo, stat syscall.Stat_t) bool {
 	return info.Mode().IsRegular()
 }
 
@@ -42,7 +43,7 @@ func main() {
 	defer ticker.Stop()
 	now := time.Now()
 
-	sortedBySize := map[uint64][]string{}
+	sortedBySize := map[int64][]string{}
 
 scanloop:
 	for {
@@ -73,14 +74,14 @@ scanloop:
 				// Process file:
 				lastFile = res.Path
 				fileCount++
-				sortedBySize[res.Size] = append(sortedBySize[res.Size], res.Path)
-				//time.Sleep(time.Millisecond * 100)
+				sortedBySize[res.FileInfo.Size()] = append(sortedBySize[res.FileInfo.Size()], res.Path)
+				//time.Sleep(time.Millisecond * 100) // simulate work
 			}
 		}
 	}
 
 	// Sort
-	var keys []uint64
+	var keys []int64
 
 	for k, _ := range sortedBySize {
 		keys = append(keys, k)

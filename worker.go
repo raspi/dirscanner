@@ -4,6 +4,8 @@ import (
 	"os"
 	"fmt"
 	"sync"
+	"syscall"
+	"time"
 )
 
 // How many directories to keep in queue
@@ -11,8 +13,9 @@ const DIRECTORY_QUEUE_SIZE = 65536
 
 // Result of a worker
 type workerResult struct {
-	Path string
-	Size uint64
+	Path     string         // Path to file
+	FileInfo os.FileInfo    // FileInfo
+	Stat     syscall.Stat_t // stat'd information
 }
 
 // Send information of what worker is processing
@@ -20,19 +23,22 @@ type workerInfo struct {
 	Directory string // Directory path
 }
 
+// File validator signature
+type FileValidatorFunction func(path string, info os.FileInfo, stat syscall.Stat_t) bool
+
 // Always use New() to get proper scanner
 type DirectoryScanner struct {
-	directoryScannerJobs chan string            // Jobs (scan directory X)
-	Results              chan workerResult      // Results
-	Finished             chan bool              // Scanner has finished?
-	Aborted              chan bool              // Scanner has aborted?
-	Information          chan workerInfo        // Information about scan progress
-	Errors               chan error             // Errors that happened during scanning
-	waitGroup            *sync.WaitGroup        // Waits jobs to be finished
-	FileValidatorFunc    func(os.FileInfo) bool // Function for file validation
-	isInitialized        bool                   // Initializing function called?
-	isFinished           bool                   // finished?
-	isRecursive          bool                   // Scan recursively?
+	directoryScannerJobs chan string           // Jobs (scan directory X)
+	Results              chan workerResult     // Results
+	Finished             chan bool             // Scanner has finished?
+	Aborted              chan bool             // Scanner has aborted?
+	Information          chan workerInfo       // Information about scan progress
+	Errors               chan error            // Errors that happened during scanning
+	waitGroup            *sync.WaitGroup       // Waits jobs to be finished
+	FileValidatorFunc    FileValidatorFunction // Function for file validation
+	isInitialized        bool                  // Initializing function called?
+	isFinished           bool                  // finished?
+	isRecursive          bool                  // Scan recursively?
 }
 
 // Create new directory scanner
@@ -43,10 +49,10 @@ func New() DirectoryScanner {
 		Aborted:              make(chan bool, 1),
 		Information:          make(chan workerInfo),
 		waitGroup:            &sync.WaitGroup{},
-		directoryScannerJobs: make(chan string),
+		directoryScannerJobs: make(chan string, DIRECTORY_QUEUE_SIZE),
 		Errors:               make(chan error),
 		// Default validator:
-		FileValidatorFunc: func(os.FileInfo) bool {
+		FileValidatorFunc: func(path string, info os.FileInfo, stat syscall.Stat_t) bool {
 			// Accepts all files
 			return true
 		},
@@ -57,10 +63,7 @@ func New() DirectoryScanner {
 }
 
 // Initialize workers
-func (s *DirectoryScanner) Init(workerCount int, fileValidatorFunc func(info os.FileInfo) bool) (err error) {
-	// Make buffer for scanner jobs
-	s.directoryScannerJobs = make(chan string, DIRECTORY_QUEUE_SIZE)
-
+func (s *DirectoryScanner) Init(workerCount int, fileValidatorFunc FileValidatorFunction) (err error) {
 	// Set file validator function which filters wanted files
 	s.FileValidatorFunc = fileValidatorFunc
 
@@ -78,7 +81,7 @@ func (s *DirectoryScanner) Init(workerCount int, fileValidatorFunc func(info os.
 	return nil
 }
 
-// Scan given directory and send results (file paths) to a channel
+// ScanDirectory scans given directory and send results (file paths) to a channel
 func (s *DirectoryScanner) ScanDirectory(dir string) (err error) {
 	if !s.isInitialized {
 		return fmt.Errorf(`not initialized`)
@@ -96,6 +99,7 @@ func (s *DirectoryScanner) ScanDirectory(dir string) (err error) {
 		return err
 	}
 
+	// Send directory to be scanned by a worker
 	s.directoryScannerJobs <- dir
 
 	// Add initial job
@@ -147,10 +151,10 @@ func (s *DirectoryScanner) worker() {
 		// Got result(s) (files)
 		for _, file := range files {
 			s.waitGroup.Add(1)
-
 			res := workerResult{
-				Path: file.Path,
-				Size: file.Size,
+				Path:     file.Path,
+				FileInfo: file.FileInfo,
+				Stat:     file.Stat,
 			}
 
 			s.Results <- res
@@ -175,5 +179,4 @@ func (s *DirectoryScanner) worker() {
 		// Directory scan job done
 		s.waitGroup.Done()
 	}
-
 }
